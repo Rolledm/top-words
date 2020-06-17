@@ -1,162 +1,174 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 //#define DEBUG
 #define TOP_SIZE 10
 
-typedef struct word {
-    char* word;
-    int count;
+typedef enum etError {
+	etErrorOk = 0,
+	etErrorArgument = -1,
+	etErrorFile = -2,
+	etErrorMalloc = -3
+} etError;
+
+typedef struct SWord {
+	char *sWord;
+	int nCount;
 } word_t;
 
-int main(int argc, char** argv) {
-    char* sPath;
-    int bFilenameSpecified = 0;
+etError insert(word_t *wordTop, int nIdx, char *sWord, int nCount) {
+	wordTop[nIdx].sWord = (char *)malloc((strlen(sWord) + 1) * sizeof(char));
+	if (!wordTop[nIdx].sWord) {
+		return etErrorMalloc;
+	}
+	strcpy(wordTop[nIdx].sWord, sWord);
+	wordTop[nIdx].nCount = nCount;
+	return etErrorOk;
+}
 
-    switch (argc) {
-        case 1:
-            printf("Specify file.\n");
-            return -1;
-        case 2:
-            printf("Only path specified.\n");
-            sPath = argv[1];
-            break;
-        default:
-            printf("Both path and filename specified. Great!\n");
-            sPath = argv[1];
-            bFilenameSpecified = 1;
-            break;
-    }
+int main(int argc, char **argv) {
+	char *sPath;
+	int bFilenameSpecified = 0;
+	etError rc = etErrorOk;
 
-    int maximum = 0;
-    FILE* file = fopen(sPath, "r");
-    if (!file) {
-        printf("Error with file.\n");
-        return -2;
-    }
-    char buf[255];
+	switch (argc) {
+	case 1:
+		printf("Specify file.\n");
+		return etErrorArgument;
+	case 2:
+		printf("Only path specified.\n");
+		sPath = argv[1];
+		break;
+	default:
+		printf("Both path and filename specified. Great!\n");
+		sPath = argv[1];
+		bFilenameSpecified = 1;
+		break;
+	}
 
-    word_t top[TOP_SIZE];
+	int nMaximumIdx = 0;
+	FILE *pFile = fopen(sPath, "r");
+	if (!pFile) {
+		printf("Something wrong with pFile.\n");
+		return etErrorFile;
+	}
+	char buf[255];
 
-    for (int i = 0; i < TOP_SIZE; ++i) {
-        word_t word;
-        word.count = 0;
-        top[i] = word;
-    }
+	word_t wordTop[TOP_SIZE];
 
-    // algo
-    while (fscanf(file, "%s", buf) != EOF) {
-        // form word
-        #ifdef DEBUG
-            printf("%s\n", buf);
-        #endif
-        word_t word;
-        word.word = buf;//(char*)malloc(strlen(buf));
-        //strcpy(word.word, buf);
+	for (int i = 0; i < TOP_SIZE; ++i) {
+		word_t word;
+		word.nCount = 0;
+		wordTop[i] = word;
+	}
 
-        //already in dict?
-        int copy = 0;
-        for (int i = 0; i < TOP_SIZE; ++i) {
-            if (!top[i].count) {
-                break;
-            }
-            if (!strcmp(top[i].word, word.word)) {
-                copy = 1;
-                break;
-            }
-        }
+	while (fscanf(pFile, "%s", buf) != EOF) {
+// form word
+#ifdef DEBUG
+		printf("Input word: %s\n", buf);
+#endif
+		word_t word;
+		word.sWord = buf;
 
-        if (!copy) {
+		// already in dict?
+		int bCopy = 0;
+		for (int i = 0; i < TOP_SIZE; ++i) {
+			if (!wordTop[i].nCount) {
+				break;
+			}
+			if (!strcmp(wordTop[i].sWord, word.sWord)) {
+				bCopy = 1;
+				break;
+			}
+		}
 
-        //search this word
-                int count = 0;
-                FILE* temp = fopen("file", "r");
-                char sTemp[255];
-                while (fscanf(temp, "%s", sTemp) != EOF) {
-                    if (!strcmp(sTemp, word.word)) {
-                        count++;
-                    }
-                }
-                fclose(temp);
-                word.count = count;
-                #ifdef DEBUG
-                    printf("%s mentioned %d\n", word.word, word.count);
-                #endif
+		if (!bCopy) {
 
-                // insert
-                for(int i = 0; i < TOP_SIZE; ++i) {
-                    if (top[i].count == 0) {
-                        word_t new_word;
-                        new_word.count = word.count;
-                        top[i] = new_word;
-                        top[i].word = (char*)malloc((strlen(word.word) + 1) * sizeof(char));
-                        strcpy(top[i].word, word.word);
-                        #ifdef DEBUG
-                            printf("%s pushed\n", top[i].word);
-                        #endif
-                        maximum++;
-                        #ifdef DEBUG
-                            printf("now maximum is %d\n", maximum);
-                        #endif
-                        break;
-                    } else {
-                        if (!strcmp(top[i].word, word.word)) {
-                            #ifdef DEBUG
-                                printf("%s is already exists\n", top[i].word);
-                            #endif
-                            break;
-                        }
-                        if (word.count > top[i].count) {
-                            #ifdef DEBUG
-                                printf("%s is bigger than %s, moving\n", word.word, top[i].word);
-                            #endif
-                            if (top[TOP_SIZE - 1].count != 0)
-                            {
-                                #ifdef DEBUG
-                                    printf("Removing element, it is %s %d\n", top[TOP_SIZE-1].word, top[TOP_SIZE - 1].count);
-                                #endif
-                                free(top[TOP_SIZE - 1].word);
-                            }
-                            for (int j = TOP_SIZE - 2; j >= i; --j) {
-                                top[j+1] = top[j];
-                            }
-                            word_t new_word;
-                            new_word.count = word.count;
-                            top[i] = new_word;
-                            top[i].word = (char*)malloc((strlen(word.word) + 1) * sizeof(char));
-                            strcpy(top[i].word, word.word);
-                            break;
-                        }
-                        #ifdef DEBUG
-                            printf("%s not pushed\n", word.word);
-                        #endif
-                    }
-                    
-                }
+			// search this word
+			int nCount = 0;
+			FILE *temp = fopen("file", "r");
+			char sTemp[255];
+			while (fscanf(temp, "%s", sTemp) != EOF) {
+				if (!strcmp(sTemp, word.sWord)) {
+					nCount++;
+				}
+			}
+			fclose(temp);
+			word.nCount = nCount;
+#ifdef DEBUG
+			printf("%s mentioned %d\n", word.sWord, word.nCount);
+#endif
 
+			// insert
+			for (int i = 0; i < TOP_SIZE; ++i) {
+				if (wordTop[i].nCount == 0) {
+					rc = insert(wordTop, i, word.sWord, word.nCount);
+					if (rc != etErrorOk) {
+						printf("Error with inserting word into the top.\n");
+						return rc;
+					}
+#ifdef DEBUG
+					printf("%s pushed\n", wordTop[i].sWord);
+#endif
+					nMaximumIdx++;
+#ifdef DEBUG
+					printf("now max index is %d\n", nMaximumIdx);
+#endif
+					break;
+				} else {
+					if (!strcmp(wordTop[i].sWord, word.sWord)) {
+#ifdef DEBUG
+						printf("%s is already exists\n", wordTop[i].sWord);
+#endif
+						break;
+					}
+					if (word.nCount > wordTop[i].nCount) {
+#ifdef DEBUG
+						printf("%s is meeted more often than %s, moving\n", word.sWord,
+									 wordTop[i].sWord);
+#endif
+						if (wordTop[TOP_SIZE - 1].nCount != 0) {
+#ifdef DEBUG
+							printf("Removing element from top, it is %s: %d\n",
+										 wordTop[TOP_SIZE - 1].sWord, wordTop[TOP_SIZE - 1].nCount);
+#endif
+							free(wordTop[TOP_SIZE - 1].sWord);
+						}
+						for (int j = nMaximumIdx - 1; j >= i; --j) {
+							wordTop[j + 1] = wordTop[j];
+						}
+						rc = insert(wordTop, i, word.sWord, word.nCount);
+						if (rc != etErrorOk) {
+							printf("Error with inserting word into the top.\n");
+							return rc;
+						}
+						break;
+					}
+#ifdef DEBUG
+					printf("%s not pushed\n", word.sWord);
+#endif
+				}
+			}
+		}
+	}
 
-        }
-        
+	// display
+	printf("Top-%d most popular words in", TOP_SIZE);
+	if (bFilenameSpecified) {
+		for (int i = 2; i < argc; ++i) {
+			printf(" %s", argv[i]);
+		}
+	} else {
+		printf(" UNKNOWN file");
+	}
+	printf("\n");
+	for (int i = 0; i < TOP_SIZE; ++i) {
+		if (wordTop[i].nCount)
+			printf("%d. %s: %d\n", i + 1, wordTop[i].sWord, wordTop[i].nCount);
+		else
+			break;
+	}
 
-    }
-
-    //display
-    printf("Top-%d most popular words in", TOP_SIZE);
-    if (bFilenameSpecified) {
-        for (int i = 2; i < argc; ++i) {
-            printf(" %s", argv[i]);
-        }
-    } else {
-        printf(" UNKNOWN file");
-    }
-    printf("\n");
-    for (int i = 0; i < TOP_SIZE; ++i) {
-        if (top[i].count)
-            printf("%d. %s: %d\n", i + 1, top[i].word, top[i].count);
-        else break;
-    }
-
-
-    return 0;
+	return 0;
 }

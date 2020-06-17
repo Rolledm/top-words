@@ -18,3 +18,5 @@ Top-10 most popular words in Call of Chtulhu
 9. я: 83
 10. его: 83
 ```
+
+## TODO: improve algo by filters, add tests.
